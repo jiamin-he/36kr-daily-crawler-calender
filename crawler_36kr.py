@@ -64,59 +64,52 @@ def process_string(string):
     return res_list
 
 def verify_date(event_list, date_time,service):
+    length_estimate = len(event_list) / 2 
     date = datetime.combine(date_time.date(), datetime.min.time())
     date_next = datetime.combine(date_time.date(), datetime.max.time())
     events_result = service.events().list(calendarId=calendar_id, 
                                         timeMin=date.isoformat() + 'Z', # 'Z' indicates UTC time,
-                                        maxResults=1, singleEvents=True, timeMax = date_next.isoformat() + 'Z',
+                                        maxResults=length_estimate, singleEvents=True, timeMax = date_next.isoformat() + 'Z',
                                         orderBy='startTime').execute()
     events = events_result.get('items', [])
 
+    print('verify_date: ', date)
     if not events:
         # print('No upcoming events found.')
-        print('verify_date: ', date, ' should run script')
+        print('should run script because no events are added')
         return True # No events added for that day. Should run the method to add.
+    elif len(events) < length_estimate:
+        print('should run script because less than estimate length events are added. Estimate length: ', length_estimate, 'actual length: ', len(events))
+        return True
     # for event in events:
     #     start = event['start'].get('dateTime', event['start'].get('date'))
     #     print(start, event['summary'])
-    print('verify_date: ', date, ' should not run script')
-    return False
-
-# for backfill, if on that day, >= 10 events are returned, then we will skip that day.
-def backfill_verify_date(date_time,service):
-    date = datetime.combine(date_time.date(), datetime.min.time())
-    date_next = datetime.combine(date_time.date(), datetime.max.time())
-    events_result = service.events().list(calendarId=calendar_id, 
-                                        timeMin=date.isoformat() + 'Z', # 'Z' indicates UTC time,
-                                        maxResults=10, singleEvents=True, timeMax = date_next.isoformat() + 'Z',
-                                        orderBy='startTime').execute()
-    events = events_result.get('items', [])
-
-    if not events or len(events) < 10:
-        # print('No upcoming events found.')
-        print('verify_date: ', date, ' should run script')
-        return True # No events added for that day. Should run the method to add.
-    # for event in events:
-    #     start = event['start'].get('dateTime', event['start'].get('date'))
-    #     print(start, event['summary'])
-    print('verify_date: ', date, ' should not run script')
+    print(' should not run script because same amounts of events are added. Estimate length: ', length_estimate, 'actual length: ', len(events))
     return False
 
 def add_event(event_list, date_time, service):
     # print(event_list)
-    for i in range(0,len(event_list),2):
+    for i in range(0,len(event_list),2): 
+    # use range seems brings many edge cases into bugs, it's better to have i be controlled by me, not by range()
+    # filter the list first to avoid those edge cases.
         # print(event_list[i].a.string)
         # print(event_list[i+1].string)
         link_list = event_list[i].find_all('a')
         link_url = ''
         link_text = ''
+        valid_event = False
         for link in link_list:
             if link.get('href'):
                 link_url = link.get('href')
                 link_text = link.string
+                valid_event = True
+        content = event_list[i+1].text
+        if not valid_event: 
+            print ("not valid event, skip --> url: ", link_url, "title text: ", link_text, "content: ", content)
+            continue
         event = {
           'summary': link_text,
-          'description': event_list[i+1].text,
+          'description': content,
           'start': {
             'dateTime': date_time.isoformat(),
             'timeZone': 'America/Los_Angeles',
@@ -129,7 +122,7 @@ def add_event(event_list, date_time, service):
             'url': link_url
           } 
         }
-        # print(event)
+        print(event)
         event = service.events().insert(calendarId=calendar_id, body=event).execute()
         print ('Event created: %s' % (event.get('htmlLink')))
 
@@ -142,13 +135,49 @@ def event_days(res_list,service):
     for res in res_list:
         event_day(res,service)
 
+# See the edge cases below to know what this filter does
+def filter_event_list(event_list):
+    print('size before filtering: ',len(event_list))
+    filtered_event_list = []
+    for event in event_list:
+        link_list = event.find_all('a')
+        valid = False
+        for link in link_list:
+            if link.get('href') and link.string: # this is to avoid case #1
+                valid = True
+                break;
+        if event.find('p', class_='img-desc') or event.find_all('img'): # to avoid case #2
+            print('filtered img relevant: ', event.string)
+            continue
+        if valid or event.text:
+           filtered_event_list.append(event)
+        else :
+            print('filtered no text relevant: ', event.string)
+    print('size after filtering: ',len(filtered_event_list))
+    return  filtered_event_list
+
+# edge case #1: 
+# <p><a href="https://36kr.com/newsflashes/665835410934530" target="_blank">Airbnb宣布获得10亿美元定期银团贷款</a></p> 
+# <p><a href="http://v.t.sina.com.cn/share/share.php?appkey=595885820&amp;url=https://36kr.com/newsflashes/665835410934530&amp;title=Airbnb%E5%AE%A3%E5%B8%83%E8%8E%B7%E5%BE%9710%E4%BA%BF%E7%BE%8E%E5%85%83%E5%AE%9A%E6%9C%9F%E9%93%B6%E5%9B%A2%E8%B4%B7%E6%AC%BE"></a></p> 
+# <p>36氪获悉，据Airbnb官方消息，Airbnb宣布从机构投资者获得10亿美元定期银团贷款。4月7日，Airbnb宣布，私募股权投资公司银湖和Sixth Street Partners将以债券加股权的形式对该公司投资10亿美元。<br></p> 
+
+# We got the above part - 3 <p> as one calendar event, because the second <p><a> is not valid -- just a share url from the source
+# should filter it out.
+
+# edge case #2:
+# <p><img src="https://img.36krcdn.com/20200415/v2_74730bfe814e4bbba464c30bc031f202_img_jpg" data-img-size-val="6281,4187"></p> 
+# <p class="img-desc" label="图片描述" classname="img-desc">来源：pexels<br></p> 
+
+
+
 def event_day(res_day, service):
     day_url = "https://36kr.com/p/" + str(res_day['itemId'])
     date_time = datetime.fromtimestamp(res_day['publishTime']/1000, pytz.timezone('Asia/Shanghai')) # from china timezone to UTC
     print('new_date: ', date_time)
     soup = soup_url(day_url)
-    event_list = soup.find('div',class_='common-width content articleDetailContent kr-rich-text-wrapper').find_all('p') # all text i need is in this div
-    add_to_calender(event_list,date_time,service)
+    event_list = soup.find('div',class_='common-width content articleDetailContent kr-rich-text-wrapper').find_all('p', class_='') # all text i need is in this div
+    filtered_list = filter_event_list(event_list)
+    add_to_calender(filtered_list,date_time,service)
     # print(event_list)
 
 

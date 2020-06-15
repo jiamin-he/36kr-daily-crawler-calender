@@ -209,5 +209,5 @@ if __name__ == '__main__':
     crawler_url = 'https://36kr.com/search/articles/%E6%B0%AA%E6%98%9F%E6%99%9A%E6%8A%A5?sort=date'
     backfill_url = 'https://gateway.36kr.com/api/mis/nav/search/resultbytype'
     # run(url, end_id)
-    # current(url, calender_initiate())
-    backfill(backfill_url,calender_initiate())    
+    current(crawler_url, calender_initiate())
+    # backfill(backfill_url,calender_initiate())    

@@ -11,9 +11,18 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import pytz
 
+# notes are in OneNote - CS-Career - Interesting - 36Kr-Crawler-Calendar
+# Current daily started running on 2020-06-14, which filled 2020-06-12
+
 tag_start_with = "window.initialState="
 calendar_id = '95nhljg3dp6ui5cojv2728n50o@group.calendar.google.com'
-backfill_size = 6
+backfill_size = 800
+backfill_timestamp = 1592097024336 # from this timestamp, day -20, return (backfill_size) passages. 
+# 1592097024336 is Sunday, June 14, 2020 1:10:24.336 AM, and thus we get the lastest event is on April 14th, 2020.(done on that day)
+# size = 20, is finished for 2020-03-18
+# 氪星晚报 at most 793 条 
+# size = 800, backfill done for 2017-10-27, and then google calendar returned error: googleapiclient.errors.HttpError: <HttpError 403 when requesting https://www.googleapis.com/calendar/v3/calendars/95nhljg3dp6ui5cojv2728n50o%40group.calendar.google.com/events?alt=json returned "Rate Limit Exceeded">
+# [2017-10-27, 2020-04-14] is done
 
 def calender_initiate():
     creds = None

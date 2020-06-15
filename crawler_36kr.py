@@ -28,7 +28,7 @@ def calender_initiate():
 
 # backfill
 def backfill(url,service):
-    payload = {"partner_id":"web","timestamp":1592097024336,"param":{"searchType":"article","searchWord":"氪星晚报","sort":"date","pageSize":2,"pageEvent":1,"pageCallback":"eyJmaXJzdElkIjo3MDg3ODM3ODMzNjkyMjIsImxhc3RJZCI6NjY3NjI0NjI3MDk5NjUwLCJmaXJzdENyZWF0ZVRpbWUiOjE1ODk1MzgwODQzNTMsImxhc3RDcmVhdGVUaW1lIjoxNTg3MTE5NTIyNjM2fQ","siteId":1,"platformId":2}}
+    payload = {"partner_id":"web","timestamp":1592097024336,"param":{"searchType":"article","searchWord":"氪星晚报","sort":"date","pageSize":4,"pageEvent":1,"pageCallback":"eyJmaXJzdElkIjo3MDg3ODM3ODMzNjkyMjIsImxhc3RJZCI6NjY3NjI0NjI3MDk5NjUwLCJmaXJzdENyZWF0ZVRpbWUiOjE1ODk1MzgwODQzNTMsImxhc3RDcmVhdGVUaW1lIjoxNTg3MTE5NTIyNjM2fQ","siteId":1,"platformId":2}}
     headers = {"content-type":'application/json','User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36'}
     r = requests.post(url,json = payload, headers = headers)
 
@@ -97,13 +97,15 @@ def add_event(event_list, date_time, service):
         link_list = event_list[i].find_all('a')
         link_url = ''
         link_text = ''
+        content = ''
         valid_event = False
         for link in link_list:
             if link.get('href'):
                 link_url = link.get('href')
                 link_text = link.string
                 valid_event = True
-        content = event_list[i+1].text
+        if i < len(event_list)-2: # acutally in filtering, we already ensure this is an even number list.
+            content = event_list[i+1].text
         if not valid_event: 
             print ("not valid event, skip --> url: ", link_url, "title text: ", link_text, "content: ", content)
             continue
@@ -154,6 +156,9 @@ def filter_event_list(event_list):
         else :
             print('filtered no text relevant: ', event.string)
     print('size after filtering: ',len(filtered_event_list))
+    current_len = len(filtered_event_list)
+    if not current_len % 2 ==0: # even
+        filtered_event_list.pop()
     return  filtered_event_list
 
 # edge case #1: 

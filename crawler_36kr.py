@@ -16,13 +16,24 @@ import pytz
 
 tag_start_with = "window.initialState="
 calendar_id = '95nhljg3dp6ui5cojv2728n50o@group.calendar.google.com'
-backfill_size = 800
-backfill_timestamp = 1592097024336 # from this timestamp, day -20, return (backfill_size) passages. 
+backfill_size = 30
+# backfill_timestamp = 1592097024336 # from this timestamp, day -20, return (backfill_size) passages. 
 # 1592097024336 is Sunday, June 14, 2020 1:10:24.336 AM, and thus we get the lastest event is on April 14th, 2020.(done on that day)
+
+# backfill_timestamp = 1592279151000 # from this timestamp, day -20, return (backfill_size) passages. 
+# 1592279151000 is Tuesday, June 16. 2020. The lastest this can return - is April 16th, 2020.
+
+backfill_timestamp = 1597376751000
+# 1592279151000 is Friday, Aug 14. 2020. The lastest this can return - is April 16th, 2020. Same as above, not useful.
+
 # size = 20, is finished for 2020-03-18
 # 氪星晚报 at most 793 条 
 # size = 800, backfill done for 2017-10-27, and then google calendar returned error: googleapiclient.errors.HttpError: <HttpError 403 when requesting https://www.googleapis.com/calendar/v3/calendars/95nhljg3dp6ui5cojv2728n50o%40group.calendar.google.com/events?alt=json returned "Rate Limit Exceeded">
 # [2017-10-27, 2020-04-14] is done
+
+# backfill_20_days_closest backfills 2020-05-19 - 2020-06-12
+
+# so we have [2020-04-17 - 2020-05-19) missing
 
 def calender_initiate():
     creds = None
@@ -50,6 +61,12 @@ def backfill(url,service):
     result_list = r.json()['data']['itemList']
     event_days(result_list,service)
 
+def backfill_20_days_closest(url, service):
+    soup = soup_url(url)
+    script_list = soup.find_all('script')
+    result_tag = find_search_result(script_list)
+    res_list = process_string(result_tag)
+    event_days(res_list, service)
 
 def soup_url(url):
     r = requests.get(url)
@@ -115,7 +132,7 @@ def add_event(event_list, date_time, service):
                 link_text = link.string
                 valid_event = True
         if i < len(event_list)-2: # acutally in filtering, we already ensure this is an even number list.
-            content = event_list[i+1].text
+            content = event_list[i+1].text + "\n\n" + link_url
         if not valid_event: 
             print ("not valid event, skip --> url: ", link_url, "title text: ", link_text, "content: ", content)
             continue
@@ -185,6 +202,7 @@ def filter_event_list(event_list):
 
 
 
+
 def event_day(res_day, service):
     day_url = "https://36kr.com/p/" + str(res_day['itemId'])
     date_time = datetime.fromtimestamp(res_day['publishTime']/1000, pytz.timezone('Asia/Shanghai')) # from china timezone to UTC
@@ -209,5 +227,6 @@ if __name__ == '__main__':
     crawler_url = 'https://36kr.com/search/articles/%E6%B0%AA%E6%98%9F%E6%99%9A%E6%8A%A5?sort=date'
     backfill_url = 'https://gateway.36kr.com/api/mis/nav/search/resultbytype'
     # run(url, end_id)
-    current(crawler_url, calender_initiate())
-    # backfill(backfill_url,calender_initiate())    
+    # current(crawler_url, calender_initiate())
+    # backfill_20_days_closest(crawler_url, calender_initiate())
+    backfill(backfill_url,calender_initiate())    
